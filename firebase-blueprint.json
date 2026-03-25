@@ -1,0 +1,201 @@
+{
+  "entities": {
+    "Category": {
+      "title": "Category",
+      "description": "A food category (e.g., Burgers, Pizza)",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the category"
+        }
+      },
+      "required": ["name"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "An item on the menu",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the item"
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the item"
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the item"
+        },
+        "category_id": {
+          "type": "string",
+          "description": "The ID of the category this item belongs to"
+        },
+        "image_url": {
+          "type": "string",
+          "description": "The URL of the item's image"
+        },
+        "available": {
+          "type": "boolean",
+          "description": "Whether the item is currently available"
+        }
+      },
+      "required": ["name", "price", "category_id"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A customer order",
+      "type": "object",
+      "properties": {
+        "customer_name": {
+          "type": "string",
+          "description": "The name of the customer"
+        },
+        "table_number": {
+          "type": "string",
+          "description": "The table number for the order"
+        },
+        "total": {
+          "type": "number",
+          "description": "The total price of the order"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "accepted", "preparing", "ready", "delivered", "rejected"],
+          "description": "The current status of the order"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the order was created"
+        },
+        "uid": {
+          "type": "string",
+          "description": "The UID of the user who placed the order"
+        }
+      },
+      "required": ["customer_name", "total", "status", "created_at"]
+    },
+    "OrderItem": {
+      "title": "OrderItem",
+      "description": "An item within an order",
+      "type": "object",
+      "properties": {
+        "menu_item_id": {
+          "type": "string",
+          "description": "The ID of the menu item"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the item at the time of order"
+        },
+        "price": {
+          "type": "number",
+          "description": "The price of the item at the time of order"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "The quantity ordered"
+        },
+        "image_url": {
+          "type": "string",
+          "description": "The image URL of the item"
+        }
+      },
+      "required": ["menu_item_id", "name", "price", "quantity"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The user's full name"
+        },
+        "mobile": {
+          "type": "string",
+          "description": "The user's mobile number"
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address"
+        },
+        "photo_url": {
+          "type": "string",
+          "description": "The user's profile photo URL"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["user", "restaurant", "admin"],
+          "description": "The user's role in the system"
+        }
+      }
+    },
+    "Review": {
+      "title": "Review",
+      "description": "A user review for a menu item",
+      "type": "object",
+      "properties": {
+        "menu_item_id": {
+          "type": "string",
+          "description": "The ID of the menu item being reviewed"
+        },
+        "user_id": {
+          "type": "string",
+          "description": "The UID of the user who wrote the review"
+        },
+        "user_name": {
+          "type": "string",
+          "description": "The name of the user"
+        },
+        "user_photo": {
+          "type": "string",
+          "description": "The photo URL of the user"
+        },
+        "rating": {
+          "type": "number",
+          "description": "The rating from 1 to 5"
+        },
+        "comment": {
+          "type": "string",
+          "description": "The review text"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the review was created"
+        }
+      },
+      "required": ["menu_item_id", "user_id", "rating", "created_at"]
+    }
+  },
+  "firestore": {
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Collection of food categories"
+    },
+    "/menu_items/{menuItemId}": {
+      "schema": "MenuItem",
+      "description": "Collection of menu items"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of customer orders"
+    },
+    "/orders/{orderId}/items/{itemId}": {
+      "schema": "OrderItem",
+      "description": "Subcollection of items for each order"
+    },
+    "/profiles/{userId}": {
+      "schema": "UserProfile",
+      "description": "Collection of user profiles, keyed by UID"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "Review",
+      "description": "Collection of user reviews for menu items"
+    }
+  }
+}

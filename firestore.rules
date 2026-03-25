@@ -1,0 +1,193 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: categories
+    // Fields:
+    //   - name: string (required)
+    //
+    // Collection: menu_items
+    // Fields:
+    //   - name: string (required)
+    //   - description: string
+    //   - price: number (required)
+    //   - category_id: string (required)
+    //   - image_url: string
+    //   - available: bool
+    //
+    // Collection: orders
+    // Fields:
+    //   - customer_name: string (required)
+    //   - table_number: string
+    //   - total: number (required)
+    //   - status: string (required, enum)
+    //   - created_at: timestamp (required)
+    //   - uid: string (required)
+    //
+    // Collection: orders/{orderId}/items
+    // Fields:
+    //   - menu_item_id: string (required)
+    //   - name: string (required)
+    //   - price: number (required)
+    //   - quantity: number (required)
+    //   - image_url: string
+    //
+    // Collection: profiles
+    // Fields:
+    //   - name: string
+    //   - mobile: string
+    //   - email: string
+    //   - photo_url: string
+    //   - role: string (enum: user, restaurant, admin)
+    //
+    // Collection: reviews
+    // Fields:
+    //   - menu_item_id: string (required)
+    //   - user_id: string (required)
+    //   - user_name: string
+    //   - user_photo: string
+    //   - rating: number (required, 1-5)
+    //   - comment: string
+    //   - created_at: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isBootstrapAdmin() {
+      return isAuthenticated() && 
+             request.auth.token.email == "8574ashu@gmail.com" && 
+             request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || (
+        isAuthenticated() &&
+        exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) && 
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin'
+      );
+    }
+
+    function isRestaurant() {
+      return isAuthenticated() && (
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'restaurant')
+      );
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100;
+    }
+
+    function isValidMenuItem(data) {
+      return data.keys().hasAll(['name', 'price', 'category_id']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.price is number && data.price >= 0 &&
+             data.category_id is string &&
+             (!('description' in data) || (data.description is string && data.description.size() < 500)) &&
+             (!('image_url' in data) || (data.image_url is string && data.image_url.size() < 2000)) &&
+             (!('available' in data) || data.available is bool);
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['customer_name', 'total', 'status', 'created_at', 'uid']) &&
+             data.customer_name is string && data.customer_name.size() > 0 && data.customer_name.size() < 100 &&
+             data.total is number && data.total >= 0 &&
+             data.status in ['pending', 'accepted', 'preparing', 'ready', 'delivered', 'rejected'] &&
+             data.created_at is timestamp &&
+             data.uid == request.auth.uid &&
+             (!('table_number' in data) || (data.table_number is string && data.table_number.size() < 50)) &&
+             (!('payment_method' in data) || (data.payment_method in ['upi', 'cash']));
+    }
+
+    function isValidOrderItem(data) {
+      return data.keys().hasAll(['menu_item_id', 'name', 'price', 'quantity']) &&
+             data.menu_item_id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.price is number && data.price >= 0 &&
+             data.quantity is number && data.quantity > 0 &&
+             (!('image_url' in data) || (data.image_url is string && data.image_url.size() < 2000));
+    }
+
+    function isValidProfile(data) {
+      return (!('name' in data) || (data.name is string && data.name.size() < 100)) &&
+             (!('mobile' in data) || (data.mobile is string && data.mobile.size() < 20)) &&
+             (!('email' in data) || (data.email is string && data.email.size() < 100)) &&
+             (!('photo_url' in data) || (data.photo_url is string && data.photo_url.size() < 2000)) &&
+             (!('role' in data) || (data.role in ['user', 'restaurant', 'admin']));
+    }
+
+    function isValidReview(data) {
+      return data.keys().hasAll(['menu_item_id', 'user_id', 'rating', 'created_at']) &&
+             data.menu_item_id is string &&
+             data.user_id == request.auth.uid &&
+             data.rating is number && data.rating >= 1 && data.rating <= 5 &&
+             data.created_at is timestamp &&
+             (!('user_name' in data) || (data.user_name is string && data.user_name.size() < 100)) &&
+             (!('user_photo' in data) || (data.user_photo is string && data.user_photo.size() < 2000)) &&
+             (!('comment' in data) || (data.comment is string && data.comment.size() < 1000));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /menu_items/{menuItemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isOwner(resource.data.uid) || isRestaurant();
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if (isOwner(resource.data.uid) && resource.data.status == 'pending' && isValidOrder(request.resource.data)) || isRestaurant();
+      allow delete: if isAdmin();
+
+      match /items/{itemId} {
+        allow read: if isOwner(get(/databases/$(database)/documents/orders/$(orderId)).data.uid) || isRestaurant();
+        allow write: if isOwner(get(/databases/$(database)/documents/orders/$(orderId)).data.uid) || isRestaurant();
+      }
+    }
+
+    match /profiles/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidProfile(request.resource.data) && 
+                      (request.resource.data.role == 'user' || isBootstrapAdmin());
+      allow update: if isOwner(userId) && isValidProfile(request.resource.data) && 
+                      (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && isValidReview(request.resource.data);
+      allow update: if isOwner(resource.data.user_id) && isValidReview(request.resource.data);
+      allow delete: if isOwner(resource.data.user_id) || isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

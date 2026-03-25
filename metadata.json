@@ -1,0 +1,7 @@
+{
+  "name": "Copy of QuickBite",
+  "description": "A comprehensive food ordering and management system featuring user, restaurant, and admin portals with real-time order tracking.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
